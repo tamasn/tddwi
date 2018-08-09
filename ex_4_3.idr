@@ -21,6 +21,8 @@ addToStore (MkData size items) newitem  = MkData _ (addToData items)
 
 data Command = Add String 
              | Get Integer 
+             | Size
+             | Search String
              | Quit 
 
 parseCommand : (cmd : String) -> (args : String) -> Maybe Command
@@ -28,6 +30,8 @@ parseCommand "add" str = Just (Add str)
 parseCommand "get" val = case all isDigit (unpack val) of
                               False => Nothing
                               True => Just (Get (cast val))
+parseCommand "size" "" = Just Size
+parseCommand "search" str = Just (Search str)
 parseCommand "quit" "" = Just Quit
 parseCommand _ _ = Nothing
 
@@ -42,12 +46,25 @@ getEntry pos store =
           Nothing => Just ("Out of range\n", store)
           Just id => Just (index id store_items ++ "\n", store)
 
+searchText : (text : String) -> (store : DataStore) -> String
+searchText text store = let xs = items store
+                            results = srch text xs 0 in
+                            results
+                        where
+                          srch : String -> Vect n String -> Integer -> String
+                          srch _ [] _ = ""
+                          srch term (y :: xs) i
+                            = let result: String = if isInfixOf term y then (cast i) ++ ": " ++ y ++ "\n" else "" in
+                                  result ++ (srch term xs (i + 1))
+
 processInput : DataStore -> String -> Maybe (String, DataStore)
 processInput store inp = case parse inp of
                               Nothing => Just ("Invalid command\n", store)
                               (Just (Add item)) =>
                                 Just ("ID " ++ show (size store) ++ "\n", addToStore store item)
                               (Just (Get pos)) => getEntry pos store 
+                              (Just Size) => Just ("Size of the store: " ++ (cast (size store)) ++ "\n", store)
+                              (Just (Search text)) => Just (searchText text store, store)
                               (Just Quit) => Nothing
 
 main : IO ()
